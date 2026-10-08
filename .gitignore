@@ -1,0 +1,12 @@
+target/
+.settings/
+.classpath
+.project
+.factorypath
+.idea/
+*.iml
+evidence/
+reports/
+logs/
+.env
+.DS_Store

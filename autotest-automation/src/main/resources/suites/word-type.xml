@@ -1,0 +1,1 @@
+<suite name="WordType"><test name="WordType"><classes><class name="vn.team.autotest.modules.wordtype.scenario.WordTypeScenario"/></classes></test></suite>

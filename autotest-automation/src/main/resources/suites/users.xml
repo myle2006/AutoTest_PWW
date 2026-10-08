@@ -1,0 +1,1 @@
+<suite name="Users"><test name="Users"><classes><class name="vn.team.autotest.modules.users.scenario.UsersScenario"/></classes></test></suite>

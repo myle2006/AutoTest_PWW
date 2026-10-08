@@ -1,0 +1,1 @@
+<suite name="Notification"><test name="Notification"><classes><class name="vn.team.autotest.modules.notification.scenario.NotificationScenario"/></classes></test></suite>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>vn.team.autotest</groupId><artifactId>pww-autotest</artifactId><version>1.0.0-SNAPSHOT</version></parent>
+    <artifactId>autotest-core</artifactId>
+    <dependencies>
+        <dependency><groupId>org.seleniumhq.selenium</groupId><artifactId>selenium-api</artifactId></dependency>
+        <dependency><groupId>org.seleniumhq.selenium</groupId><artifactId>selenium-support</artifactId></dependency>
+        <dependency><groupId>org.seleniumhq.selenium</groupId><artifactId>selenium-chrome-driver</artifactId></dependency>
+        <dependency><groupId>org.seleniumhq.selenium</groupId><artifactId>selenium-firefox-driver</artifactId></dependency>
+        <dependency><groupId>org.seleniumhq.selenium</groupId><artifactId>selenium-edge-driver</artifactId></dependency>
+        <dependency><groupId>org.testng</groupId><artifactId>testng</artifactId></dependency>
+        <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId></dependency>
+    </dependencies>
+</project>

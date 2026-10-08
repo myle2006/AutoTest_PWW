@@ -1,0 +1,3 @@
+package vn.team.autotest.modules.learning.page;
+import org.openqa.selenium.WebDriver; import vn.team.autotest.automation.base.PwwModulePage; import vn.team.autotest.core.config.AppConfig;
+public final class LearningPage extends PwwModulePage { public LearningPage(WebDriver d, AppConfig c){super(d,c,"/learning");} }
