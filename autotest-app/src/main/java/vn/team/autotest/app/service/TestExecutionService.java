@@ -1,6 +1,8 @@
 package vn.team.autotest.app.service;
 
 import java.time.Instant;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,7 +52,8 @@ public class TestExecutionService {
     private void execute(String runId, List<TestDefinition> selected, int maxScore) {
         Instant started = Instant.now();
         runs.put(runId, new RunSummary(runId, TestStatus.RUNNING, started, null, 0, 0, 0, 0, maxScore, List.of()));
-        TestResultListener collector = new TestResultListener(runId);
+        TestResultListener collector = new TestResultListener(runId,
+                partial -> publishRunning(runId, started, maxScore, partial));
         try {
             TestNG testng = new TestNG(false);
             testng.setUseDefaultListeners(false);
@@ -60,7 +63,12 @@ public class TestExecutionService {
             testng.run();
         } catch (RuntimeException failure) {
             List<TestResult> failed = new ArrayList<>(collector.results());
-            failed.add(new TestResult(runId, "framework", "framework", TestStatus.FAIL, 0, failure.getMessage(), null));
+            String reason = failure.getMessage() == null ? failure.getClass().getSimpleName() : failure.getMessage();
+            failed.add(new TestResult(runId, "framework::runner", "FRAMEWORK", "framework", "framework",
+                    "runner", "Lỗi khởi tạo hoặc thực thi automation", "Runner/TestNG",
+                    "Runner hoàn tất mà không có automation error.",
+                    "Automation error: " + reason, TestStatus.FAIL, 0, reason,
+                    "classification=AUTOMATION_ERROR\n" + failure, null));
             finish(runId, started, selected, maxScore, failed);
             return;
         }
@@ -70,12 +78,36 @@ public class TestExecutionService {
     private void finish(String runId, Instant started, List<TestDefinition> selected, int maxScore, List<TestResult> results) {
         int passed = (int) results.stream().filter(r -> r.status() == TestStatus.PASS).count();
         int failed = (int) results.stream().filter(r -> r.status() == TestStatus.FAIL).count();
-        int skipped = (int) results.stream().filter(r -> r.status() == TestStatus.SKIP).count();
+        int skipped = (int) results.stream().filter(r -> r.status() == TestStatus.SKIP || r.status() == TestStatus.BLOCKED).count();
         Set<String> failedModules = new LinkedHashSet<>();
         results.stream().filter(r -> r.status() != TestStatus.PASS).map(TestResult::moduleId).forEach(failedModules::add);
         int score = selected.stream().filter(d -> !failedModules.contains(d.moduleId())).mapToInt(TestDefinition::maxPoints).sum();
         TestStatus status = failed == 0 && skipped == 0 ? TestStatus.PASS : TestStatus.FAIL;
         runs.put(runId, new RunSummary(runId, status, started, Instant.now(), passed, failed, skipped, score, maxScore, results));
+    }
+
+    private void publishRunning(String runId, Instant started, int maxScore, List<TestResult> results) {
+        int passed = (int) results.stream().filter(r -> r.status() == TestStatus.PASS).count();
+        int failed = (int) results.stream().filter(r -> r.status() == TestStatus.FAIL).count();
+        int skipped = (int) results.stream().filter(r -> r.status() == TestStatus.SKIP || r.status() == TestStatus.BLOCKED).count();
+        runs.put(runId, new RunSummary(runId, TestStatus.RUNNING, started, null,
+                passed, failed, skipped, 0, maxScore, results));
+    }
+
+    public Path evidence(String runId, String invocationId) {
+        TestResult result = find(runId).results().stream()
+                .filter(item -> item.invocationId().equals(invocationId))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Không tồn tại invocation: " + invocationId));
+        if (result.evidencePath() == null || result.evidencePath().isBlank()) {
+            throw new IllegalArgumentException("Invocation không có screenshot");
+        }
+        String rawScreenshot = result.evidencePath().split(";", 2)[0].trim();
+        Path evidenceRoot = Path.of("evidence").toAbsolutePath().normalize();
+        Path screenshot = Path.of(rawScreenshot).toAbsolutePath().normalize();
+        if (!screenshot.startsWith(evidenceRoot) || !Files.isRegularFile(screenshot)) {
+            throw new IllegalArgumentException("Screenshot không hợp lệ hoặc không còn tồn tại");
+        }
+        return screenshot;
     }
 
     private List<TestDefinition> select(String moduleId) {

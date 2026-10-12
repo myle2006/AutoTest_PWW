@@ -1,1 +1,17 @@
-<suite name="Vocabulary"><test name="Vocabulary"><classes><class name="vn.team.autotest.modules.vocabulary.scenario.VocabularyScenario"/></classes></test></suite>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="Vocabulary KB-11-001..005" parallel="none">
+    <test name="Vocabulary Management">
+        <classes>
+            <class name="vn.team.autotest.modules.vocabulary.scenario.VocabularyScenario">
+                <methods>
+                    <include name="kb11001CreateValidVocabularyWithMockedAutomaticIpa"/>
+                    <include name="kb11002ValidateVocabularyInput"/>
+                    <include name="kb11003ValidateVocabularyImage"/>
+                    <include name="kb11005CompareMenusTablesAndCheckboxes"/>
+                    <include name="kb11004VerifyVocabularyAcrossLearningMethods"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+</suite>

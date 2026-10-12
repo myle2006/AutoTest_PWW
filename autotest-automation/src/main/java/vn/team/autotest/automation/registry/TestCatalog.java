@@ -19,7 +19,7 @@ public final class TestCatalog {
         module("game", "08", "Trò chơi", "/games", "User", 7, 7, "game", "game.xml"),
         module("notification", "09", "Thông báo", "/notifications", "User", 6, 7, "notification", "notification.xml"),
         module("wordtype", "10", "Quản lý loại từ", "/admin/word-types", "Admin", 11, 7, "wordtype", "word-type.xml"),
-        module("vocabulary", "11", "Quản lý từ vựng", "/admin/vocabulary", "Admin", 13, 7, "vocabulary", "vocabulary.xml"),
+        module("vocabulary", "11", "Quản lý từ vựng", "/admin_vocab.php", "Admin", 5, 7, "vocabulary", "vocabulary.xml"),
         module("folder", "12", "Thư mục", "/folders", "User", 8, 7, "folder", "folder.xml"),
         module("library", "13", "Thư viện học tập", "/library", "User", 8, 7, "library", "library.xml"),
         module("customflashcard", "14", "Thẻ ghi nhớ cá nhân", "/my-flashcards", "User", 12, 7, "customflashcard", "custom-flashcard.xml"),

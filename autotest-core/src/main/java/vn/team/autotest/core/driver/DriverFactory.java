@@ -1,5 +1,6 @@
 package vn.team.autotest.core.driver;
 
+import java.time.Duration;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -18,7 +19,8 @@ public final class DriverFactory {
             case "edge" -> new EdgeDriver(edgeOptions(config));
             default -> new ChromeDriver(chromeOptions(config));
         };
-        driver.manage().timeouts().implicitlyWait(config.timeout());
+        // Chỉ dùng explicit wait để thời gian chờ có điều kiện quan sát được.
+        driver.manage().timeouts().implicitlyWait(Duration.ZERO);
         driver.manage().timeouts().pageLoadTimeout(config.timeout().multipliedBy(2));
         if (!config.headless()) driver.manage().window().maximize();
         return driver;

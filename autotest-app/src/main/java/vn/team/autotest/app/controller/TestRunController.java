@@ -1,6 +1,11 @@
 package vn.team.autotest.app.controller;
 
 import java.util.List;
+import java.nio.file.Path;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +29,14 @@ public class TestRunController {
 
     @GetMapping("/modules") public List<TestDefinition> modules() { return TestCatalog.all(); }
     @PostMapping("/runs") public RunSummary start(@RequestBody(required = false) RunRequest request) { return service.start(request == null ? "all" : request.moduleId()); }
-    @GetMapping("/runs/{runId}") public RunSummary status(@PathVariable String runId) { return service.find(runId); }
+    @GetMapping("/runs/{runId}") public RunSummary status(@PathVariable("runId") String runId) { return service.find(runId); }
+    @GetMapping("/runs/{runId}/results/{invocationId}/evidence")
+    public ResponseEntity<FileSystemResource> evidence(@PathVariable("runId") String runId,
+            @PathVariable("invocationId") String invocationId) {
+        Path screenshot = service.evidence(runId, invocationId);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(MediaType.IMAGE_PNG)
+                .body(new FileSystemResource(screenshot));
+    }
     @GetMapping("/runs") public List<RunSummary> history() { return service.history(); }
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

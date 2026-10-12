@@ -3,6 +3,7 @@
   let selected = modules.find(item => item.moduleId === "dashboard") || modules[0];
   let selectedCase = null;
   let activeRun = null;
+  let latestRun = null;
 
   const casePrefixes = {home:"HOM",dashboard:"DSH",learning:"LRN",flashcard:"FLC",quiz:"QIZ",matching:"MAT",game:"GAM",notification:"NTF",wordtype:"WTP",vocabulary:"VOC",folder:"FLD",library:"LIB",customflashcard:"CFC",users:"USR"};
   const caseTopics = {
@@ -179,14 +180,17 @@ public final class ${className}Scenario extends AbstractModuleScenario {
     if (activeRun) return;
     showView("suite");
     activeRun = "starting";
+    latestRun = null;
     setRunning(true);
-    writeConsole(`[${time()}] Gửi yêu cầu đến Spring Boot runner...\n[${time()}] Scope: ${moduleId === "all" ? "full-website.xml" : selected.suiteFile}`);
+    $("#live-run-id").textContent = "Đang tạo run...";
+    $("#live-result-body").innerHTML = `<tr><td colspan="9" class="empty-result">TestNG đang khởi tạo WebDriver...</td></tr>`;
     try {
       const response = await fetch("/api/runs", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({moduleId})});
       if (!response.ok) throw new Error(await response.text());
       const run = await response.json();
       activeRun = run.runId;
-      writeConsole(`[${time()}] Run ID: ${run.runId}\n[${time()}] TestNG đang khởi tạo WebDriver...`);
+      latestRun = run;
+      $("#live-run-id").textContent = `Run ID: ${run.runId}`;
       poll(run.runId);
     } catch (error) {
       finishWithError(error);
@@ -198,6 +202,8 @@ public final class ${className}Scenario extends AbstractModuleScenario {
       const response = await fetch(`/api/runs/${runId}`);
       if (!response.ok) throw new Error(await response.text());
       const run = await response.json();
+      latestRun = run;
+      renderLiveResults(run);
       if (["PENDING", "RUNNING"].includes(run.status)) {
         $("#run-state").textContent = "ĐANG CHẠY";
         setTimeout(() => poll(runId), 700);
@@ -218,17 +224,63 @@ public final class ${className}Scenario extends AbstractModuleScenario {
       badge.textContent = result ? result.status : "CHƯA CHẠY";
     });
     $("#run-state").textContent = run.status;
-    const lines = [`[${time()}] Hoàn tất: ${run.status}`, `PASS: ${run.passed} · FAIL: ${run.failed} · SKIP: ${run.skipped}`, `SCORE: ${run.score} / ${run.maxScore}`];
-    run.results.forEach(result => lines.push(`${result.status.padEnd(5)} ${result.moduleId}/${result.testId} ${result.durationMillis}ms${result.error ? `\n      ${result.error}` : ""}${result.evidencePath ? `\n      ${result.evidencePath}` : ""}`));
-    writeConsole(lines.join("\n"));
+    renderLiveResults(run);
     renderReport(run);
   }
+
+  function renderLiveResults(run) {
+    const filter = $("#result-status-filter").value;
+    const counts = {PASS:0, FAIL:0, BLOCKED:0, SKIP:0};
+    run.results.forEach(result => { if (counts[result.status] !== undefined) counts[result.status] += 1; });
+    $("[data-count='total']").textContent = `${run.results.length} Total`;
+    $("[data-count='pass']").textContent = `${counts.PASS} Pass`;
+    $("[data-count='fail']").textContent = `${counts.FAIL} Fail`;
+    $("[data-count='blocked']").textContent = `${counts.BLOCKED} Blocked`;
+    $("[data-count='skip']").textContent = `${counts.SKIP} Skip`;
+    $("#live-run-id").textContent = `Run ID: ${run.runId} · ${run.status}`;
+    const visible = run.results.filter(result => filter === "ALL" || result.status === filter);
+    $("#live-result-body").innerHTML = visible.length ? visible.map((result, index) => `<tr class="result-row" data-invocation="${escapeHtml(result.invocationId)}">
+      <td>${index + 1}</td><td><b>${escapeHtml(result.scenarioId)}</b></td>
+      <td><strong>${escapeHtml(result.testCase)}</strong><small>${escapeHtml(result.datasetId)}</small></td>
+      <td>${cell(result.testData)}</td><td>${cell(result.expectedResult)}</td>
+      <td>${cell(result.actualResult)}${result.reason ? `<small class="reason">${escapeHtml(result.reason)}</small>` : ""}</td>
+      <td><span class="result-status ${result.status.toLowerCase()}">${result.status}</span></td>
+      <td>${formatDuration(result.durationMillis)}</td>
+      <td>${result.evidencePath ? '<button class="evidence-button">Xem ảnh + log</button>' : '<button class="evidence-button">Xem log</button>'}</td>
+    </tr>`).join("") : `<tr><td colspan="9" class="empty-result">Không có invocation phù hợp bộ lọc.</td></tr>`;
+  }
+
+  function openResultDetail(invocationId) {
+    if (!latestRun) return;
+    const result = latestRun.results.find(item => item.invocationId === invocationId);
+    if (!result) return;
+    $("#result-detail-scenario").textContent = `${result.scenarioId} · ${result.status}`;
+    $("#result-detail-title").textContent = result.testCase;
+    $("#result-detail-dataset").textContent = `Dataset: ${result.datasetId} · ${formatDuration(result.durationMillis)}`;
+    $("#result-detail-expected").textContent = result.expectedResult;
+    $("#result-detail-actual").textContent = result.actualResult + (result.reason ? `\nLý do: ${result.reason}` : "");
+    $("#result-detail-logs").textContent = result.logs || "Không có log.";
+    const evidence = $("#result-detail-evidence");
+    evidence.innerHTML = result.evidencePath
+      ? `<img alt="Screenshot ${escapeHtml(result.scenarioId)} ${escapeHtml(result.datasetId)}" src="/api/runs/${encodeURIComponent(latestRun.runId)}/results/${encodeURIComponent(result.invocationId)}/evidence"><small>${escapeHtml(result.evidencePath)}</small>`
+      : "Không có screenshot cho invocation này (screenshot chỉ được chụp khi không PASS).";
+    $("#result-overlay").classList.add("open");
+    $("#result-overlay").setAttribute("aria-hidden", "false");
+  }
+
+  function closeResultDetail() {
+    $("#result-overlay").classList.remove("open");
+    $("#result-overlay").setAttribute("aria-hidden", "true");
+  }
+
+  function cell(value) { return `<span class="clamped" title="${escapeHtml(value || "—")}">${escapeHtml(value || "—")}</span>`; }
+  function formatDuration(millis) { return millis < 1000 ? `${millis} ms` : `${(millis / 1000).toFixed(2)} s`; }
 
   function renderReport(run) {
     $("#report-score").textContent = `${run.score} / ${run.maxScore}`;
     $("#report-copy").textContent = `${run.passed} PASS · ${run.failed} FAIL · ${run.skipped} SKIP`;
     $("#score-ring").textContent = run.maxScore ? `${Math.round(run.score * 100 / run.maxScore)}%` : "—";
-    $("#report-body").innerHTML = run.results.length ? run.results.map(result => `<tr><td>${escapeHtml(result.testId)}</td><td>${escapeHtml(result.moduleId)}</td><td class="status-${result.status.toLowerCase()}">${result.status}</td><td>${result.durationMillis} ms</td><td>${escapeHtml(result.error || result.evidencePath || "—")}</td></tr>`).join("") : `<tr><td colspan="5">Không có kết quả.</td></tr>`;
+    $("#report-body").innerHTML = run.results.length ? run.results.map(result => `<tr><td>${escapeHtml(result.scenarioId)} / ${escapeHtml(result.datasetId)}</td><td>${escapeHtml(result.moduleId)}</td><td class="status-${result.status.toLowerCase()}">${result.status}</td><td>${result.durationMillis} ms</td><td>${escapeHtml(result.reason || result.actualResult || result.evidencePath || "—")}</td></tr>`).join("") : `<tr><td colspan="5">Không có kết quả.</td></tr>`;
   }
 
   function setRunning(running) {
@@ -238,14 +290,12 @@ public final class ${className}Scenario extends AbstractModuleScenario {
   }
 
   function finishWithError(error) {
-    writeConsole(`[${time()}] Lỗi runner\n${error.message}`);
+    $("#live-result-body").innerHTML = `<tr><td colspan="9" class="empty-result error">Automation runner error: ${escapeHtml(error.message)}</td></tr>`;
     activeRun = null;
     setRunning(false);
     $("#run-state").textContent = "LỖI";
   }
 
-  function writeConsole(text) { $("#console-output").textContent = text; }
-  function time() { return new Date().toLocaleTimeString("vi-VN", {hour12:false}); }
   function escapeHtml(value) { const node = document.createElement("div"); node.textContent = String(value); return node.innerHTML; }
 
   $$(".nav-item").forEach(button => button.addEventListener("click", () => showView(button.dataset.target)));
@@ -270,6 +320,12 @@ public final class ${className}Scenario extends AbstractModuleScenario {
   $("#run-checked").addEventListener("click", () => { if ($$(".case-check:checked").length) startRun(selected.moduleId); });
   $("#add-suite").addEventListener("click", event => { const old = event.currentTarget.textContent; event.currentTarget.textContent = "✓ Đã thêm vào Test Suite"; setTimeout(() => event.currentTarget.textContent = old, 1400); });
   $("#source-module").addEventListener("change", event => selectModule(event.target.value));
-  $("#clear-console").addEventListener("click", () => writeConsole(""));
+  $("#result-status-filter").addEventListener("change", () => { if (latestRun) renderLiveResults(latestRun); });
+  $("#live-result-body").addEventListener("click", event => {
+    const row = event.target.closest(".result-row");
+    if (row) openResultDetail(row.dataset.invocation);
+  });
+  $("#close-result-detail").addEventListener("click", closeResultDetail);
+  $("#result-backdrop").addEventListener("click", closeResultDetail);
   if (selected) selectModule(selected.moduleId);
 })();
